@@ -70,21 +70,18 @@ function connectToGame() {
         if (e.key === 'Enter') sendChatMessage();
     };
     
-    // Nuevo: Instrucciones especiales sobre robos
     addGameMessage('💡 TIP: ¡Puedes ROBAR la palabra escribiéndola en el chat! Solo 2 intentos por ronda.');
 }
 
 function updateGame(data) {
     gameActive = data.gameActive;
     currentTurnId = data.currentTurn;
-    currentWordLength = data.wordLength;
-    currentWordPoints = data.wordPoints;
+    currentWordLength = data.wordLength || 0;
+    currentWordPoints = data.wordPoints || 0;
     
-    // Actualizar display de palabra
     const wordDisplay = data.wordDisplay.join(' ');
     document.getElementById('wordDisplay').innerHTML = wordDisplay;
     
-    // Mostrar puntos en juego
     const pointsDisplay = document.getElementById('pointsAtStake');
     if (pointsDisplay) {
         pointsDisplay.innerHTML = `💰 Puntos en juego: ${currentWordPoints}`;
@@ -106,9 +103,8 @@ function updateGame(data) {
             turnDiv.style.background = '#d4edda';
             turnDiv.style.color = '#155724';
             turnDiv.style.fontWeight = 'bold';
-            turnDiv.style.fontSize = '18px';
         } else if (data.gameActive) {
-            turnDiv.innerHTML = `🎲 Turno de: ${currentPlayer.name} - ${currentWordLength} letras en juego (${currentWordPoints} pts)`;
+            turnDiv.innerHTML = `🎲 Turno de: ${currentPlayer.name} - ${currentWordLength} letras (${currentWordPoints} pts en juego)`;
             turnDiv.style.background = '#f8f9fa';
             turnDiv.style.color = '#667eea';
         } else {
@@ -178,10 +174,7 @@ function updatePlayersList(players) {
         if (player.id === myPlayerId) {
             playerCard.classList.add('current');
         }
-        playerCard.innerHTML = `
-            ${player.name} 
-            <span class="score">⭐ ${player.score || 0}</span>
-        `;
+        playerCard.innerHTML = `${player.name} <span class="score">⭐ ${player.score || 0}</span>`;
         container.appendChild(playerCard);
     });
 }
