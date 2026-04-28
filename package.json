@@ -1,0 +1,13 @@
+{
+  "name": "ahorcadito-multijugador",
+  "version": "1.0.0",
+  "description": "Juego del Ahorcado multiplayer para hasta 10 jugadores",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4"
+  }
+}
