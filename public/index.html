@@ -2,11 +2,12 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Ahorcadito Multijugador - Juego en Red</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+    <!-- Pantalla de login -->
     <div id="loginScreen" class="login-screen">
         <div class="login-card">
             <h1>🎮 AHORCADITO MULTIJUGADOR</h1>
@@ -17,26 +18,31 @@
         </div>
     </div>
 
+    <!-- Pantalla del juego -->
     <div id="gameScreen" style="display: none;">
         <div class="game-container">
             <div class="game-header">
-                <h1>🎮 AHORCADITO MULTIJUGADOR</h1>
+                <h1>✧ AHORCADITO MULTIJUGADOR ✧</h1>
                 <div class="players-online">
-                    <span>👥 Jugadores online: </span>
+                    <span>👥 Conectados: </span>
                     <span id="playerCount">0</span>
                 </div>
             </div>
             
             <div class="game-main">
+                <!-- Panel izquierdo: dibujo y turno -->
                 <div class="left-panel">
-                    <canvas id="hangmanCanvas" width="350" height="350"></canvas>
+                    <div class="hangman-area">
+                        <canvas id="hangmanCanvas" width="350" height="350"></canvas>
+                    </div>
                     <div class="current-turn" id="currentTurn">
-                        🎯 Esperando turno...
+                        🎲 Esperando jugadores...
                     </div>
                 </div>
                 
+                <!-- Panel derecho: juego -->
                 <div class="right-panel">
-                    <div class="word-display" id="wordDisplay"></div>
+                    <div class="word-display" id="wordDisplay">_ _ _ _ _</div>
                     
                     <div class="mistakes">
                         ❌ Errores: <span id="errorCount">0</span> / <span id="maxErrors">7</span>
@@ -44,19 +50,23 @@
                     
                     <div class="keyboard" id="keyboardContainer"></div>
                     
-                    <div class="game-messages" id="gameMessages">
+                    <div class="game-messages">
                         <div class="messages-title">📢 Mensajes del juego</div>
                         <div id="messagesList"></div>
                     </div>
                     
                     <div class="chat-section">
-                        <input type="text" id="chatInput" placeholder="Chatea con otros jugadores..." maxlength="100">
+                        <input type="text" id="chatInput" placeholder="💬 Chatea con otros jugadores..." maxlength="100">
                         <button id="sendChat">Enviar</button>
                     </div>
                 </div>
             </div>
             
-            <div class="players-list" id="playersList"></div>
+            <!-- Lista de jugadores -->
+            <div class="players-section">
+                <h3>👥 Jugadores en partida</h3>
+                <div class="players-list" id="playersList"></div>
+            </div>
         </div>
     </div>
 
