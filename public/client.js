@@ -3,6 +3,8 @@ let currentPlayerName = '';
 let gameActive = false;
 let currentTurnId = null;
 let myPlayerId = null;
+let currentWordLength = 0;
+let currentWordPoints = 0;
 
 function connectToGame() {
     const nameInput = document.getElementById('playerName');
@@ -15,7 +17,6 @@ function connectToGame() {
     
     currentPlayerName = name;
     
-    // Conectar al servidor
     socket = io();
     
     socket.on('connect', () => {
@@ -50,7 +51,6 @@ function connectToGame() {
         const turnDiv = document.getElementById('currentTurn');
         if (turnDiv) {
             turnDiv.innerHTML = `🎲 ${msg}`;
-            turnDiv.style.background = '#f0f0f0';
         }
     });
     
@@ -62,50 +62,55 @@ function connectToGame() {
         addChatMessage(data);
     });
     
-    // Ocultar login y mostrar juego
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display = 'block';
     
-    // Configurar chat
     document.getElementById('sendChat').onclick = sendChatMessage;
     document.getElementById('chatInput').onkeypress = (e) => {
         if (e.key === 'Enter') sendChatMessage();
     };
+    
+    // Nuevo: Instrucciones especiales sobre robos
+    addGameMessage('💡 TIP: ¡Puedes ROBAR la palabra escribiéndola en el chat! Solo 2 intentos por ronda.');
 }
 
 function updateGame(data) {
     gameActive = data.gameActive;
     currentTurnId = data.currentTurn;
+    currentWordLength = data.wordLength;
+    currentWordPoints = data.wordPoints;
     
     // Actualizar display de palabra
     const wordDisplay = data.wordDisplay.join(' ');
     document.getElementById('wordDisplay').innerHTML = wordDisplay;
     
-    // Actualizar errores
+    // Mostrar puntos en juego
+    const pointsDisplay = document.getElementById('pointsAtStake');
+    if (pointsDisplay) {
+        pointsDisplay.innerHTML = `💰 Puntos en juego: ${currentWordPoints}`;
+    }
+    
     document.getElementById('errorCount').innerText = data.wrongCount;
     document.getElementById('maxErrors').innerText = data.maxErrors;
     
-    // Actualizar teclado
     const guessedLetters = data.guessedLetters || [];
     const isMyTurn = (currentTurnId === myPlayerId && data.gameActive);
     updateKeyboard(guessedLetters, data.gameActive, isMyTurn);
     
-    // Actualizar turno actual
     const currentPlayer = data.players.find(p => p.id === data.currentTurn);
     const turnDiv = document.getElementById('currentTurn');
     
     if (currentPlayer) {
         if (currentTurnId === myPlayerId && data.gameActive) {
-            turnDiv.innerHTML = `🎯 ¡ES TU TURNO! Adivina una letra`;
+            turnDiv.innerHTML = `🎯 ¡ES TU TURNO! Adivina una letra - Palabra de ${currentWordLength} letras (${currentWordPoints} pts)`;
             turnDiv.style.background = '#d4edda';
             turnDiv.style.color = '#155724';
             turnDiv.style.fontWeight = 'bold';
             turnDiv.style.fontSize = '18px';
         } else if (data.gameActive) {
-            turnDiv.innerHTML = `🎲 Turno de: ${currentPlayer.name}`;
+            turnDiv.innerHTML = `🎲 Turno de: ${currentPlayer.name} - ${currentWordLength} letras en juego (${currentWordPoints} pts)`;
             turnDiv.style.background = '#f8f9fa';
             turnDiv.style.color = '#667eea';
-            turnDiv.style.fontWeight = 'normal';
         } else {
             turnDiv.innerHTML = `⏳ Esperando nueva ronda...`;
             turnDiv.style.background = '#fff3cd';
@@ -113,18 +118,15 @@ function updateGame(data) {
         }
     }
     
-    // Actualizar lista de jugadores
     updatePlayersList(data.players);
-    
-    // Dibujar ahorcado
     drawHangman(data.wrongCount);
     
     if (!data.gameActive && data.wordRevealed) {
-        addGameMessage(`📖 Palabra revelada: ${data.wordRevealed}`);
+        addGameMessage(`📖 Palabra revelada: ${data.wordRevealed} (valía ${data.wordPoints} puntos)`);
     }
     
     if (data.winner && data.winner === myPlayerId) {
-        addGameMessage(`🏆 ¡Ganaste la ronda! +1 punto 🏆`);
+        addGameMessage(`🏆 ¡ADIVINASTE LA PALABRA! +${data.wordPoints} puntos 🏆`);
     }
 }
 
@@ -134,7 +136,6 @@ function updateKeyboard(guessedLetters, gameActive, isMyTurn) {
     
     keyboardDiv.innerHTML = '';
     
-    // Alfabeto completo incluyendo Ñ
     const alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
                       'N','Ñ','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
     
@@ -145,7 +146,6 @@ function updateKeyboard(guessedLetters, gameActive, isMyTurn) {
         
         const isGuessed = guessedLetters.includes(letter);
         
-        // Deshabilitar si ya fue usada, o el juego no está activo, o no es mi turno
         if (isGuessed || !gameActive || !isMyTurn) {
             btn.disabled = true;
             btn.style.opacity = '0.5';
@@ -200,74 +200,62 @@ function drawHangman(errors) {
     ctx.fillStyle = "#3d2a18";
     ctx.lineCap = "round";
     
-    // Base (suelo)
     ctx.beginPath();
     ctx.moveTo(50, height - 40);
     ctx.lineTo(width - 50, height - 40);
     ctx.stroke();
     
-    // Poste vertical
     ctx.beginPath();
     ctx.moveTo(100, height - 40);
     ctx.lineTo(100, 50);
     ctx.stroke();
     
-    // Viga superior
     ctx.beginPath();
     ctx.moveTo(98, 50);
     ctx.lineTo(230, 50);
     ctx.stroke();
     
-    // Soga
     ctx.beginPath();
     ctx.moveTo(210, 50);
     ctx.lineTo(210, 80);
     ctx.stroke();
     
-    // Dibujar según cantidad de errores
     if (errors >= 1) {
-        // Cabeza
         ctx.beginPath();
         ctx.arc(210, 110, 22, 0, 2 * Math.PI);
         ctx.stroke();
     }
     if (errors >= 2) {
-        // Torso
         ctx.beginPath();
         ctx.moveTo(210, 132);
         ctx.lineTo(210, 200);
         ctx.stroke();
     }
     if (errors >= 3) {
-        // Brazo izquierdo
         ctx.beginPath();
         ctx.moveTo(210, 150);
         ctx.lineTo(175, 180);
         ctx.stroke();
     }
     if (errors >= 4) {
-        // Brazo derecho
         ctx.beginPath();
         ctx.moveTo(210, 150);
         ctx.lineTo(245, 180);
         ctx.stroke();
     }
     if (errors >= 5) {
-        // Pierna izquierda
         ctx.beginPath();
         ctx.moveTo(210, 200);
         ctx.lineTo(175, 245);
         ctx.stroke();
     }
     if (errors >= 6) {
-        // Pierna derecha
         ctx.beginPath();
         ctx.moveTo(210, 200);
         ctx.lineTo(245, 245);
         ctx.stroke();
     }
     if (errors >= 7) {
-        // Cara de ahorcado (opcional)
         ctx.fillStyle = "#7a3e1a";
         ctx.font = "bold 18px monospace";
         ctx.fillText("X_X", 200, 115);
@@ -284,7 +272,6 @@ function addGameMessage(msg) {
     messagesDiv.appendChild(messageEl);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
     
-    // Limitar mensajes a 50
     while (messagesDiv.children.length > 50) {
         messagesDiv.removeChild(messagesDiv.firstChild);
     }
@@ -296,6 +283,10 @@ function addChatMessage(data) {
     
     const messageEl = document.createElement('div');
     messageEl.className = 'message-item';
+    if (data.isStealAttempt) {
+        messageEl.style.color = '#ffaa00';
+        messageEl.style.fontWeight = 'bold';
+    }
     messageEl.innerHTML = `💬 <strong>${data.player}:</strong> ${data.message}`;
     messagesDiv.appendChild(messageEl);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;

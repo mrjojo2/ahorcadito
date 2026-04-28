@@ -7,23 +7,28 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Servir archivos estáticos
 app.use(express.static(path.join(__dirname, 'public')));
 
-// BANCO DE PALABRAS
+// BANCO DE PALABRAS - Variadas (cortas, largas, muy largas)
 const WORDS = [
-    "ELEFANTE", "JIRAFA", "CANGREJO", "MARIPOSA", "GOLONDRINA", "DELFIN", "CABALLO", 
-    "TORTUGA", "HORMIGA", "CONEJO", "MANZANA", "SANDIA", "FRESA", "NARANJA", "PERA", 
-    "UVAS", "LIMON", "BROCOLI", "ZANAHORIA", "PEPINO", "TELEFONO", "COMPUTADORA", 
-    "LINTERNA", "MALETA", "PARAGUAS", "ESPADA", "GAFAS", "RELOJ", "BICICLETA", 
-    "MARTILLO", "SABIDURIA", "VALENTIA", "SECRETO", "ARMONIA", "AVENTURA", "LIBERTAD", 
-    "SILENCIO", "MONTAÑA", "VOLCAN", "PLAYA", "BOSQUE", "DESIERTO", "ISLA", "CIUDAD", 
-    "PUENTE", "OCEANO", "ESTRELLA", "TELESCOPIO", "GALAXIA", "ROBOTICA", "FUTBOL", 
-    "BALONCESTO", "NATACION", "AJEDREZ", "GUITARRA", "PINTURA", "HAMBURGUESA", 
-    "CHOCOLATE", "PIZZA", "EMPANADA", "CEREZA"
+    // Cortas (3-5 letras)
+    "SOL", "LUNA", "MAR", "CIELO", "COCHE", "CASA", "PERRO", "GATO", "PAZ", "AMOR",
+    "VIDA", "TIEMPO", "JUEGO", "COLOR", "FLOR", "ARBOL", "RÍO", "MONTE", "NUBE",
+    
+    // Medias (6-9 letras)
+    "ELEFANTE", "MARIPOSA", "CHOCOLATE", "COMPUTADORA", "TELÉFONO", "AVENTURA",
+    "LIBERTAD", "SABIDURÍA", "MONTAÑA", "VOLCÁN", "OCÉANO", "GALAXIA", "FÚTBOL",
+    "GUITARRA", "PINTURA", "BICICLETA", "MARTILLO", "PARAGUAS", "MALETA",
+    
+    // Largas (10-15 letras)
+    "ESTRELLAS", "TELESCOPIO", "MICROSCOPIO", "ALGORITMO", "ROBÓTICA", "NATACIÓN",
+    "BALONCESTO", "HAMBURGUESA", "ENSALADA", "EDUCACIÓN", "TECNOLOGÍA", "SORPRESA",
+    
+    // Muy largas (16+ letras)
+    "CONSTELACIÓN", "ELECTRICIDAD", "FERROCARRIL", "INCREÍBLEMENTE", "MAGNÍFICAMENTE",
+    "EXTRAORDINARIO", "FUNCIONALIDAD", "INTERNACIONAL", "DESARROLLADOR", "RECOMENDACIÓN"
 ];
 
-// Estado del juego
 let gameState = {
     currentWord: "",
     wordDisplay: [],
@@ -31,14 +36,17 @@ let gameState = {
     wrongCount: 0,
     maxErrors: 7,
     gameActive: false,
-    currentTurn: null,      // ID del jugador que está jugando
-    players: [],            // Lista de jugadores conectados
+    currentTurn: null,
+    players: [],
     waitingForNext: false,
     winner: null,
-    lastWord: ""
+    lastWord: "",
+    wordPoints: 0,
+    turnStarting: true,
+    roundActive: true
 };
 
-let players = new Map(); // socket.id -> { id, name, score }
+let players = new Map(); // socket.id -> { id, name, score, stealAttempts, canSteal }
 
 // Función para normalizar letras
 function normalizeLetter(ch) {
@@ -51,15 +59,20 @@ function normalizeLetter(ch) {
     return normalized.toUpperCase();
 }
 
-// Función para iniciar nueva ronda
+// Calcular puntos basado en la longitud de la palabra
+function calculateWordPoints(word) {
+    return word.length;
+}
+
+// Iniciar nueva ronda
 function startNewRound() {
-    // Elegir palabra diferente a la anterior
     let availableWords = WORDS.filter(w => w !== gameState.lastWord);
     if (availableWords.length === 0) availableWords = [...WORDS];
     
     const randomIndex = Math.floor(Math.random() * availableWords.length);
-    gameState.currentWord = availableWords[randomIndex];
+    gameState.currentWord = availableWords[randomIndex].toUpperCase();
     gameState.lastWord = gameState.currentWord;
+    gameState.wordPoints = calculateWordPoints(gameState.currentWord);
     
     gameState.wordDisplay = gameState.currentWord.split('').map(() => '_');
     gameState.guessedLetters = [];
@@ -67,20 +80,28 @@ function startNewRound() {
     gameState.gameActive = true;
     gameState.waitingForNext = false;
     gameState.winner = null;
+    gameState.roundActive = true;
+    gameState.turnStarting = true;
     
-    // Elegir el siguiente jugador (turno rotativo)
+    // Resetear intentos de robo para todos los jugadores
+    for (let [id, player] of players.entries()) {
+        player.stealAttempts = 0;
+        player.canSteal = true;
+        players.set(id, player);
+    }
+    
+    // Elegir siguiente jugador
     if (gameState.players.length > 0) {
         if (!gameState.currentTurn || !players.has(gameState.currentTurn)) {
             gameState.currentTurn = gameState.players[0].id;
         } else {
-            // Rotar al siguiente
             const currentIndex = gameState.players.findIndex(p => p.id === gameState.currentTurn);
             const nextIndex = (currentIndex + 1) % gameState.players.length;
             gameState.currentTurn = gameState.players[nextIndex].id;
         }
     }
     
-    // Emitir nuevo estado a todos
+    // Emitir nuevo estado
     io.emit('game-update', {
         wordDisplay: gameState.wordDisplay,
         guessedLetters: gameState.guessedLetters,
@@ -89,25 +110,29 @@ function startNewRound() {
         gameActive: gameState.gameActive,
         currentTurn: gameState.currentTurn,
         players: Array.from(players.values()),
-        winner: gameState.winner
+        winner: null,
+        wordPoints: gameState.wordPoints,
+        wordLength: gameState.currentWord.length
     });
     
-    // Notificar quién juega
     const currentPlayer = players.get(gameState.currentTurn);
     if (currentPlayer) {
-        io.emit('turn-notification', `${currentPlayer.name} está adivinando la palabra...`);
+        io.emit('turn-notification', `🎯 Turno de ${currentPlayer.name} - Palabra de ${gameState.currentWord.length} letras (${gameState.wordPoints} pts en juego)`);
     }
+    
+    io.emit('game-message', `🎲 ¡Nueva ronda! Palabra de ${gameState.currentWord.length} letras - ${gameState.wordPoints} puntos en juego. Turno de ${currentPlayer?.name}`);
 }
 
 // Procesar letra
 function processLetter(socketId, letter) {
-    if (!gameState.gameActive) return false;
+    if (!gameState.gameActive || !gameState.roundActive) return false;
     if (gameState.currentTurn !== socketId) return false;
     
     const normalizedLetter = normalizeLetter(letter);
     
     // Verificar si ya fue adivinada
     if (gameState.guessedLetters.includes(normalizedLetter)) {
+        io.to(socketId).emit('game-message', `⚠️ La letra "${letter}" ya fue intentada.`);
         return false;
     }
     
@@ -115,7 +140,6 @@ function processLetter(socketId, letter) {
     
     // Verificar si la letra está en la palabra
     let letterFound = false;
-    const wordUpper = gameState.currentWord.toUpperCase();
     const wordNormalized = gameState.currentWord.split('').map(c => normalizeLetter(c));
     
     for (let i = 0; i < wordNormalized.length; i++) {
@@ -128,45 +152,71 @@ function processLetter(socketId, letter) {
     if (!letterFound) {
         gameState.wrongCount++;
         
-        // Verificar derrota
+        // Verificar derrota del turno (pasar turno)
         if (gameState.wrongCount >= gameState.maxErrors) {
-            gameState.gameActive = false;
-            gameState.waitingForNext = true;
+            // La ronda no termina, solo cambia el turno
+            gameState.turnStarting = true;
             
-            // El jugador que falló no suma punto
+            // Pasar al siguiente jugador
+            const currentIndex = gameState.players.findIndex(p => p.id === gameState.currentTurn);
+            const nextIndex = (currentIndex + 1) % gameState.players.length;
+            gameState.currentTurn = gameState.players[nextIndex].id;
+            
+            // Resetear contador de errores para el nuevo turno, pero mantener letras adivinadas
+            gameState.wrongCount = 0;
+            
+            const newPlayer = players.get(gameState.currentTurn);
+            io.emit('game-message', `❌ ${players.get(socketId)?.name} falló! La horca suma un error. Ahora juega ${newPlayer?.name}`);
+            io.emit('turn-notification', `🔄 Turno transferido a ${newPlayer?.name} - Palabra de ${gameState.wordPoints} pts`);
+            
             io.emit('game-update', {
                 wordDisplay: gameState.wordDisplay,
                 guessedLetters: gameState.guessedLetters,
                 wrongCount: gameState.wrongCount,
                 maxErrors: gameState.maxErrors,
-                gameActive: false,
+                gameActive: gameState.gameActive,
                 currentTurn: gameState.currentTurn,
                 players: Array.from(players.values()),
                 winner: null,
-                wordRevealed: gameState.currentWord
+                wordPoints: gameState.wordPoints,
+                wordLength: gameState.currentWord.length,
+                letterFailed: true
             });
-            
-            io.emit('game-message', `❌ ¡${players.get(gameState.currentTurn)?.name} perdió! La palabra era: ${gameState.currentWord}. Nueva ronda en 3 segundos...`);
-            
-            setTimeout(() => {
-                startNewRound();
-            }, 3000);
             return false;
         }
+        
+        // Actualizar después del error (sin cambiar turno aún)
+        io.emit('game-update', {
+            wordDisplay: gameState.wordDisplay,
+            guessedLetters: gameState.guessedLetters,
+            wrongCount: gameState.wrongCount,
+            maxErrors: gameState.maxErrors,
+            gameActive: gameState.gameActive,
+            currentTurn: gameState.currentTurn,
+            players: Array.from(players.values()),
+            winner: null,
+            wordPoints: gameState.wordPoints,
+            wordLength: gameState.currentWord.length,
+            letterFailed: true
+        });
+        
+        io.emit('game-message', `❌ ${players.get(socketId)?.name} falló la letra "${letter}". Error ${gameState.wrongCount}/${gameState.maxErrors}`);
+        return false;
     }
     
-    // Verificar victoria
+    // Verificar victoria (adivinó toda la palabra)
     const isWin = !gameState.wordDisplay.includes('_');
     
     if (isWin) {
         gameState.gameActive = false;
-        gameState.waitingForNext = true;
+        gameState.roundActive = false;
         gameState.winner = gameState.currentTurn;
         
-        // Sumar punto al jugador
+        // Sumar puntos (tamaño de la palabra)
         const winner = players.get(gameState.currentTurn);
         if (winner) {
-            winner.score = (winner.score || 0) + 1;
+            winner.score = (winner.score || 0) + gameState.wordPoints;
+            players.set(gameState.currentTurn, winner);
         }
         
         io.emit('game-update', {
@@ -178,18 +228,20 @@ function processLetter(socketId, letter) {
             currentTurn: gameState.currentTurn,
             players: Array.from(players.values()),
             winner: gameState.currentTurn,
-            wordRevealed: gameState.currentWord
+            wordRevealed: gameState.currentWord,
+            wordPoints: gameState.wordPoints,
+            wordLength: gameState.currentWord.length
         });
         
-        io.emit('game-message', `🎉 ¡${winner?.name} adivinó la palabra! +1 punto. Nueva ronda en 3 segundos...`);
+        io.emit('game-message', `🎉 ¡${winner?.name} ADIVINÓ LA PALABRA! +${gameState.wordPoints} puntos 🎉`);
         
         setTimeout(() => {
             startNewRound();
-        }, 3000);
+        }, 4000);
         return true;
     }
     
-    // Actualizar todos los clientes
+    // Acierto - sigue el mismo jugador
     io.emit('game-update', {
         wordDisplay: gameState.wordDisplay,
         guessedLetters: gameState.guessedLetters,
@@ -198,40 +250,109 @@ function processLetter(socketId, letter) {
         gameActive: gameState.gameActive,
         currentTurn: gameState.currentTurn,
         players: Array.from(players.values()),
-        winner: null
+        winner: null,
+        wordPoints: gameState.wordPoints,
+        wordLength: gameState.currentWord.length,
+        letterSuccess: true
     });
     
-    return letterFound;
+    io.emit('game-message', `✅ ${players.get(socketId)?.name} acertó la letra "${letter}". Sigue jugando!`);
+    return true;
+}
+
+// Procesar intento de robo (adivinar palabra completa desde el chat)
+function processSteal(socketId, guessedWord) {
+    if (!gameState.gameActive || !gameState.roundActive) return { success: false, reason: "No hay ronda activa" };
+    if (socketId === gameState.currentTurn) return { success: false, reason: "Es tu turno, no puedes robar" };
+    
+    const player = players.get(socketId);
+    if (!player) return { success: false, reason: "Jugador no encontrado" };
+    
+    // Verificar intentos de robo
+    if (player.stealAttempts >= 2) {
+        return { success: false, reason: "Ya usaste tus 2 intentos de robo en esta ronda" };
+    }
+    
+    // Normalizar la palabra adivinada
+    const normalizedGuess = guessedWord.toUpperCase().trim();
+    const normalizedWord = gameState.currentWord;
+    
+    if (normalizedGuess === normalizedWord) {
+        // ¡Robo exitoso!
+        gameState.gameActive = false;
+        gameState.roundActive = false;
+        gameState.winner = socketId;
+        
+        // Sumar puntos
+        player.score = (player.score || 0) + gameState.wordPoints;
+        player.stealAttempts++;
+        players.set(socketId, player);
+        
+        io.emit('game-update', {
+            wordDisplay: gameState.wordDisplay,
+            guessedLetters: gameState.guessedLetters,
+            wrongCount: gameState.wrongCount,
+            maxErrors: gameState.maxErrors,
+            gameActive: false,
+            currentTurn: gameState.currentTurn,
+            players: Array.from(players.values()),
+            winner: socketId,
+            wordRevealed: gameState.currentWord,
+            wordPoints: gameState.wordPoints,
+            wordLength: gameState.currentWord.length
+        });
+        
+        io.emit('game-message', `🔫 ¡ROBO ESPECTACULAR! ${player.name} adivinó la palabra "${gameState.currentWord}" y ganó ${gameState.wordPoints} puntos!`);
+        
+        setTimeout(() => {
+            startNewRound();
+        }, 4000);
+        
+        return { success: true, message: `¡Robaste la palabra! +${gameState.wordPoints} puntos` };
+    } else {
+        // Intento fallido
+        player.stealAttempts++;
+        players.set(socketId, player);
+        
+        let message = "";
+        if (player.stealAttempts >= 2) {
+            message = `❌ ${player.name} falló su 2do intento de robo. Queda bloqueado hasta la próxima ronda.`;
+        } else {
+            message = `❌ ${player.name} intentó robar con "${guessedWord}" pero no era correcta. Le queda ${2 - player.stealAttempts} intento(s).`;
+        }
+        
+        io.emit('game-message', message);
+        
+        return { success: false, reason: "Palabra incorrecta", attemptsLeft: 2 - player.stealAttempts };
+    }
 }
 
 // Socket.io conexiones
 io.on('connection', (socket) => {
     console.log(`Usuario conectado: ${socket.id}`);
     
-    // Limitar a 10 jugadores
     if (players.size >= 10) {
         socket.emit('game-full', 'El juego está lleno (máximo 10 jugadores)');
         socket.disconnect();
         return;
     }
     
-    // Solicitar nombre
     socket.emit('request-name');
     
-    // Registrar jugador
     socket.on('player-name', (name) => {
         if (players.has(socket.id)) return;
         
         const newPlayer = {
             id: socket.id,
             name: name.substring(0, 20),
-            score: 0
+            score: 0,
+            stealAttempts: 0,
+            canSteal: true
         };
         
         players.set(socket.id, newPlayer);
         gameState.players = Array.from(players.values());
         
-        // Informar a todos
         io.emit('player-joined', {
             players: gameState.players,
             newPlayer: name
@@ -239,11 +360,9 @@ io.on('connection', (socket) => {
         
         io.emit('game-message', `✨ ${name} se unió al juego! (${players.size}/10 jugadores)`);
         
-        // Si es el primer jugador, iniciar el juego
         if (players.size === 1 && !gameState.gameActive) {
             startNewRound();
         } else if (gameState.gameActive) {
-            // Enviar estado actual al nuevo jugador
             socket.emit('game-update', {
                 wordDisplay: gameState.wordDisplay,
                 guessedLetters: gameState.guessedLetters,
@@ -252,7 +371,9 @@ io.on('connection', (socket) => {
                 gameActive: gameState.gameActive,
                 currentTurn: gameState.currentTurn,
                 players: gameState.players,
-                winner: gameState.winner
+                winner: null,
+                wordPoints: gameState.wordPoints,
+                wordLength: gameState.currentWord.length
             });
         }
     });
@@ -277,15 +398,46 @@ io.on('connection', (socket) => {
         processLetter(socket.id, letter);
     });
     
-    // Chat messages
+    // Procesar intento de robo desde el chat
+    socket.on('steal-attempt', (guessedWord) => {
+        if (!gameState.gameActive) {
+            socket.emit('game-message', 'No hay una ronda activa para robar');
+            return;
+        }
+        
+        const result = processSteal(socket.id, guessedWord);
+        if (!result.success) {
+            socket.emit('game-message', `🔒 Intento de robo fallido: ${result.reason}`);
+        }
+    });
+    
+    // Chat normal
     socket.on('chat-message', (msg) => {
         const player = players.get(socket.id);
         if (player && msg.trim()) {
-            io.emit('chat-message', {
-                player: player.name,
-                message: msg.substring(0, 100),
-                timestamp: new Date().toLocaleTimeString()
-            });
+            // Detectar si alguien intenta adivinar la palabra completa
+            const upperMsg = msg.trim().toUpperCase();
+            const possibleWord = upperMsg.replace(/[¿?¡!]/g, '');
+            
+            // Si el mensaje tiene más de 3 letras y podría ser la palabra
+            if (possibleWord.length >= 3 && gameState.gameActive && socket.id !== gameState.currentTurn) {
+                // Es un intento de robo
+                socket.emit('steal-attempt', possibleWord);
+                io.emit('chat-message', {
+                    player: player.name,
+                    message: `[Intento de adivinar la palabra]`,
+                    timestamp: new Date().toLocaleTimeString(),
+                    isStealAttempt: true
+                });
+            } else {
+                // Chat normal
+                io.emit('chat-message', {
+                    player: player.name,
+                    message: msg.substring(0, 100),
+                    timestamp: new Date().toLocaleTimeString(),
+                    isStealAttempt: false
+                });
+            }
         }
     });
     
@@ -303,18 +455,14 @@ io.on('connection', (socket) => {
             
             io.emit('game-message', `👋 ${player.name} abandonó el juego. (${players.size}/10 jugadores)`);
             
-            // Si ya no hay jugadores, resetear juego
             if (players.size === 0) {
                 gameState.gameActive = false;
                 gameState.currentTurn = null;
                 gameState.waitingForNext = false;
-            } 
-            // Si el jugador que tenía el turno se fue, pasar al siguiente
-            else if (gameState.currentTurn === socket.id && gameState.gameActive) {
-                // Rotar turno
+            } else if (gameState.currentTurn === socket.id && gameState.gameActive) {
                 if (gameState.players.length > 0) {
                     gameState.currentTurn = gameState.players[0].id;
-                    io.emit('turn-notification', `Turno transferido a ${gameState.players[0].name}`);
+                    io.emit('turn-notification', `🔄 Turno transferido a ${gameState.players[0].name}`);
                     io.emit('game-update', {
                         wordDisplay: gameState.wordDisplay,
                         guessedLetters: gameState.guessedLetters,
@@ -323,7 +471,9 @@ io.on('connection', (socket) => {
                         gameActive: gameState.gameActive,
                         currentTurn: gameState.currentTurn,
                         players: gameState.players,
-                        winner: null
+                        winner: null,
+                        wordPoints: gameState.wordPoints,
+                        wordLength: gameState.currentWord.length
                     });
                 }
             }
@@ -334,5 +484,4 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`🎮 Servidor del Ahorcadito corriendo en http://localhost:${PORT}`);
-    console.log(`🌐 En la red local, accede desde: http://<IP_DEL_SERVIDOR>:${PORT}`);
 });

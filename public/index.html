@@ -3,26 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Ahorcadito Multijugador - Juego en Red</title>
+    <title>Ahorcadito Multijugador - Roba la Palabra</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <!-- Pantalla de login -->
     <div id="loginScreen" class="login-screen">
         <div class="login-card">
             <h1>🎮 AHORCADITO MULTIJUGADOR</h1>
-            <p>Conéctate y juega con hasta 10 personas</p>
+            <p>🎯 ¡Roba la palabra desde el chat!</p>
             <input type="text" id="playerName" placeholder="Tu nombre" maxlength="20" autocomplete="off">
             <button onclick="connectToGame()">🎯 Unirse al juego</button>
-            <small>Máximo 10 jugadores simultáneos</small>
+            <small>Máximo 10 jugadores | 2 intentos de robo por ronda</small>
         </div>
     </div>
 
-    <!-- Pantalla del juego -->
     <div id="gameScreen" style="display: none;">
         <div class="game-container">
             <div class="game-header">
-                <h1>✧ AHORCADITO MULTIJUGADOR ✧</h1>
+                <h1>✧ AHORCADITO - ROBA PALABRAS ✧</h1>
                 <div class="players-online">
                     <span>👥 Conectados: </span>
                     <span id="playerCount">0</span>
@@ -30,7 +28,6 @@
             </div>
             
             <div class="game-main">
-                <!-- Panel izquierdo: dibujo y turno -->
                 <div class="left-panel">
                     <div class="hangman-area">
                         <canvas id="hangmanCanvas" width="350" height="350"></canvas>
@@ -40,9 +37,12 @@
                     </div>
                 </div>
                 
-                <!-- Panel derecho: juego -->
                 <div class="right-panel">
                     <div class="word-display" id="wordDisplay">_ _ _ _ _</div>
+                    
+                    <div class="points-info" id="pointsAtStake">
+                        💰 Puntos en juego: 0
+                    </div>
                     
                     <div class="mistakes">
                         ❌ Errores: <span id="errorCount">0</span> / <span id="maxErrors">7</span>
@@ -56,13 +56,12 @@
                     </div>
                     
                     <div class="chat-section">
-                        <input type="text" id="chatInput" placeholder="💬 Chatea con otros jugadores..." maxlength="100">
+                        <input type="text" id="chatInput" placeholder="💬 Chatea o ESCRIBE LA PALABRA para ROBAR (2 intentos)..." maxlength="100">
                         <button id="sendChat">Enviar</button>
                     </div>
                 </div>
             </div>
             
-            <!-- Lista de jugadores -->
             <div class="players-section">
                 <h3>👥 Jugadores en partida</h3>
                 <div class="players-list" id="playersList"></div>
