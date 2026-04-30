@@ -53,14 +53,30 @@
 
                     <div class="keyboard" id="keyboardContainer"></div>
 
+                    <!-- Área de mensajes del juego -->
                     <div class="game-messages">
                         <div class="messages-title">📢 Mensajes del juego</div>
                         <div id="messagesList" class="messages-list"></div>
                     </div>
 
-                    <div class="chat-section">
-                        <input type="text" id="chatInput" placeholder="💬 Escribe aquí - ¡O LA PALABRA COMPLETA PARA ROBAR! (2 intentos)" maxlength="100">
-                        <button id="sendChat">Enviar</button>
+                    <!-- CHAT NORMAL (separado) -->
+                    <div class="chat-normal">
+                        <div class="chat-title">💬 CHAT NORMAL - Conversa con amigos</div>
+                        <div id="chatMessagesList" class="chat-messages-list"></div>
+                        <div class="chat-input-area">
+                            <input type="text" id="chatInput" placeholder="Mensaje para todos..." maxlength="100">
+                            <button id="sendChat">Enviar</button>
+                        </div>
+                    </div>
+
+                    <!-- ÁREA DE ROBO (separada) -->
+                    <div class="steal-area">
+                        <div class="steal-title">🔫 ROBA LA PALABRA - ¡2 intentos por ronda!</div>
+                        <div class="steal-input-area">
+                            <input type="text" id="stealInput" placeholder="Escribe la palabra completa para ROBAR..." maxlength="50">
+                            <button id="sendSteal">🎯 ROBAR</button>
+                        </div>
+                        <div id="stealAttemptsInfo" class="steal-attempts-info">Intentos restantes: 2</div>
                     </div>
                 </div>
             </div>

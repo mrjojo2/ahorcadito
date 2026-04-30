@@ -5,6 +5,7 @@ let currentTurnId = null;
 let myPlayerId = null;
 let currentWordLength = 0;
 let currentWordPoints = 0;
+let myStealAttempts = 2;
 
 function connectToGame() {
     const nameInput = document.getElementById('playerName');
@@ -62,15 +63,32 @@ function connectToGame() {
         addChatMessage(data);
     });
     
+    socket.on('steal-result', (data) => {
+        if (data.attemptsLeft !== undefined) {
+            myStealAttempts = data.attemptsLeft;
+            updateStealAttemptsDisplay();
+        }
+        if (data.message) {
+            addGameMessage(data.message);
+        }
+    });
+    
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display = 'block';
     
+    // Eventos separados
     document.getElementById('sendChat').onclick = sendChatMessage;
     document.getElementById('chatInput').onkeypress = (e) => {
         if (e.key === 'Enter') sendChatMessage();
     };
     
-    addGameMessage('💡 TIP: ¡Puedes ROBAR la palabra escribiéndola en el chat! Solo 2 intentos por ronda.');
+    document.getElementById('sendSteal').onclick = sendStealAttempt;
+    document.getElementById('stealInput').onkeypress = (e) => {
+        if (e.key === 'Enter') sendStealAttempt();
+    };
+    
+    addGameMessage('💡 TIP: ¡Usa el área ROBA PALABRA para adivinar la palabra completa! 2 intentos por ronda.');
+    addGameMessage('💬 El chat normal es solo para conversar con amigos.');
 }
 
 function updateGame(data) {
@@ -78,6 +96,12 @@ function updateGame(data) {
     currentTurnId = data.currentTurn;
     currentWordLength = data.wordLength || 0;
     currentWordPoints = data.wordPoints || 0;
+    
+    // Resetear intentos de robo si es nueva ronda
+    if (data.newRound) {
+        myStealAttempts = 2;
+        updateStealAttemptsDisplay();
+    }
     
     const wordDisplay = data.wordDisplay.join(' ');
     document.getElementById('wordDisplay').innerHTML = wordDisplay;
@@ -119,10 +143,25 @@ function updateGame(data) {
     
     if (!data.gameActive && data.wordRevealed) {
         addGameMessage(`📖 Palabra revelada: ${data.wordRevealed} (valía ${data.wordPoints} puntos)`);
+        // Resetear intentos de robo para nueva ronda
+        myStealAttempts = 2;
+        updateStealAttemptsDisplay();
     }
     
     if (data.winner && data.winner === myPlayerId) {
         addGameMessage(`🏆 ¡ADIVINASTE LA PALABRA! +${data.wordPoints} puntos 🏆`);
+    }
+}
+
+function updateStealAttemptsDisplay() {
+    const infoDiv = document.getElementById('stealAttemptsInfo');
+    if (infoDiv) {
+        infoDiv.innerHTML = `🔫 Intentos de robo restantes: ${myStealAttempts}`;
+        if (myStealAttempts === 0) {
+            infoDiv.style.color = '#ff6666';
+        } else {
+            infoDiv.style.color = '#ffaa00';
+        }
     }
 }
 
@@ -271,18 +310,18 @@ function addGameMessage(msg) {
 }
 
 function addChatMessage(data) {
-    const messagesDiv = document.getElementById('messagesList');
-    if (!messagesDiv) return;
+    const chatDiv = document.getElementById('chatMessagesList');
+    if (!chatDiv) return;
     
     const messageEl = document.createElement('div');
-    messageEl.className = 'message-item';
-    if (data.isStealAttempt) {
-        messageEl.style.color = '#ffaa00';
-        messageEl.style.fontWeight = 'bold';
-    }
+    messageEl.className = 'chat-message-item';
     messageEl.innerHTML = `💬 <strong>${data.player}:</strong> ${data.message}`;
-    messagesDiv.appendChild(messageEl);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    chatDiv.appendChild(messageEl);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+    
+    while (chatDiv.children.length > 100) {
+        chatDiv.removeChild(chatDiv.firstChild);
+    }
 }
 
 function sendChatMessage() {
@@ -291,5 +330,31 @@ function sendChatMessage() {
     if (msg && socket) {
         socket.emit('chat-message', msg);
         input.value = '';
+    }
+}
+
+function sendStealAttempt() {
+    const input = document.getElementById('stealInput');
+    const guess = input.value.trim().toUpperCase();
+    
+    if (!guess) {
+        addGameMessage('⚠️ Escribe una palabra para intentar robar');
+        return;
+    }
+    
+    if (myStealAttempts <= 0) {
+        addGameMessage('❌ Ya no te quedan intentos de robo en esta ronda');
+        return;
+    }
+    
+    if (socket) {
+        socket.emit('steal-attempt', guess);
+        myStealAttempts--;
+        updateStealAttemptsDisplay();
+        input.value = '';
+        
+        if (myStealAttempts === 0) {
+            addGameMessage('⚠️ Usaste tus 2 intentos de robo. Quedas bloqueado hasta la próxima ronda.');
+        }
     }
 }
