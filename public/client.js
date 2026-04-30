@@ -76,7 +76,6 @@ function connectToGame() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display = 'block';
     
-    // Eventos separados
     document.getElementById('sendChat').onclick = sendChatMessage;
     document.getElementById('chatInput').onkeypress = (e) => {
         if (e.key === 'Enter') sendChatMessage();
@@ -97,7 +96,6 @@ function updateGame(data) {
     currentWordLength = data.wordLength || 0;
     currentWordPoints = data.wordPoints || 0;
     
-    // Resetear intentos de robo si es nueva ronda
     if (data.newRound) {
         myStealAttempts = 2;
         updateStealAttemptsDisplay();
@@ -143,7 +141,6 @@ function updateGame(data) {
     
     if (!data.gameActive && data.wordRevealed) {
         addGameMessage(`📖 Palabra revelada: ${data.wordRevealed} (valía ${data.wordPoints} puntos)`);
-        // Resetear intentos de robo para nueva ronda
         myStealAttempts = 2;
         updateStealAttemptsDisplay();
     }

@@ -1,7 +1,7 @@
 {
   "name": "ahorcadito-multijugador",
-  "version": "1.0.0",
-  "description": "Juego del Ahorcado multiplayer para hasta 10 jugadores",
+  "version": "2.0.0",
+  "description": "Juego del Ahorcado multiplayer con robo de palabras",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

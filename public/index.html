@@ -11,7 +11,7 @@
     <div id="loginScreen" class="login-screen">
         <div class="login-card">
             <h1>🎮 AHORCADITO MULTIJUGADOR</h1>
-            <p>🎯 ¡Roba la palabra desde el chat!</p>
+            <p>🎯 ¡Roba la palabra!</p>
             <input type="text" id="playerName" placeholder="Tu nombre" maxlength="20" autocomplete="off">
             <button onclick="connectToGame()">🎯 Unirse al juego</button>
             <small>Máximo 10 jugadores | 2 intentos de robo por ronda</small>
@@ -29,7 +29,7 @@
             </div>
 
             <div class="game-board">
-                <!-- Panel izquierdo: dibujo -->
+                <!-- Panel izquierdo: dibujo del ahorcado -->
                 <div class="hangman-section">
                     <div class="hangman-area">
                         <canvas id="hangmanCanvas" width="350" height="350"></canvas>
@@ -39,51 +39,59 @@
                     </div>
                 </div>
 
-                <!-- Panel derecho: juego -->
+                <!-- Panel derecho: toda la interfaz de juego -->
                 <div class="game-section">
+                    <!-- Palabra oculta -->
                     <div class="word-display" id="wordDisplay">_ _ _ _ _</div>
 
+                    <!-- Puntos en juego -->
                     <div class="points-info" id="pointsAtStake">
                         💰 Puntos en juego: 0
                     </div>
 
+                    <!-- Contador de errores -->
                     <div class="mistakes">
                         ❌ Errores: <span id="errorCount">0</span> / <span id="maxErrors">7</span>
                     </div>
 
+                    <!-- Teclado virtual -->
                     <div class="keyboard" id="keyboardContainer"></div>
 
-                    <!-- Área de mensajes del juego -->
+                    <!-- Mensajes del juego (eventos, turnos, aciertos, errores) -->
                     <div class="game-messages">
-                        <div class="messages-title">📢 Mensajes del juego</div>
+                        <div class="messages-title">📢 MENSAJES DEL JUEGO</div>
                         <div id="messagesList" class="messages-list"></div>
                     </div>
 
-                    <!-- CHAT NORMAL (separado) -->
+                    <!-- ============================================ -->
+                    <!-- 1️⃣ CHAT NORMAL - Solo para conversar -->
+                    <!-- ============================================ -->
                     <div class="chat-normal">
                         <div class="chat-title">💬 CHAT NORMAL - Conversa con amigos</div>
                         <div id="chatMessagesList" class="chat-messages-list"></div>
                         <div class="chat-input-area">
-                            <input type="text" id="chatInput" placeholder="Mensaje para todos..." maxlength="100">
-                            <button id="sendChat">Enviar</button>
+                            <input type="text" id="chatInput" placeholder="Escribe tu mensaje aquí..." maxlength="100">
+                            <button id="sendChat">📨 Enviar</button>
                         </div>
                     </div>
 
-                    <!-- ÁREA DE ROBO (separada) -->
+                    <!-- ============================================ -->
+                    <!-- 2️⃣ ÁREA DE ROBO - Para adivinar la palabra completa -->
+                    <!-- ============================================ -->
                     <div class="steal-area">
                         <div class="steal-title">🔫 ROBA LA PALABRA - ¡2 intentos por ronda!</div>
                         <div class="steal-input-area">
                             <input type="text" id="stealInput" placeholder="Escribe la palabra completa para ROBAR..." maxlength="50">
                             <button id="sendSteal">🎯 ROBAR</button>
                         </div>
-                        <div id="stealAttemptsInfo" class="steal-attempts-info">Intentos restantes: 2</div>
+                        <div id="stealAttemptsInfo" class="steal-attempts-info">🔫 Intentos de robo restantes: 2</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Lista de jugadores -->
+            <!-- Lista de jugadores con puntuación -->
             <div class="players-section">
-                <h3>👥 Jugadores en partida</h3>
+                <h3>👥 JUGADORES EN PARTIDA</h3>
                 <div id="playersList" class="players-list"></div>
             </div>
         </div>
